@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Full Example</title>
+	<script>
+		var WApi_config = {
+			'edge_jq':'system',
+			'ajax_link':'examples/interactions.php'
+		};
+	</script>
+	<script type="text/javascript" src="out/wapi.js"></script>
+	<link rel="stylesheet" type="text/css" href="out/wapi.css">
+</head>
+	<body>
+		
+		<div id="example_parent" style="position:absolute; padding:0px; top:5%; left:5%; width:90%;height:90%;background:lightblue;overflow:hidden;">
+		</div>
+		<script>
+			
+			var WIN_ID = WApi.Gui.WinX.create({
+				'parent':'#example_parent',
+				'signature':'example_app',
+				'width':'half',
+				'height':'half',
+				'x':'center',
+				'y':'center',
+				'title':'Тестовое приложение',
+				'max':'yes',
+				'min':'yes',
+				'close_cb':function(win_id){
+					console.log(win_id);
+				}
+			});
+			WApi.Gui.WinX.content(WIN_ID,'<button style="position:absolute;width:100px;top:50%;left:50%;margin-left:-50px;" data-btn="btn_press" class="wapi_btn_2">Press me!</button>');
+			
+			
+			var example_app = WApi.App({
+				"signature":"example_app", // Сигнатура для связи приложения с ХТМЛ врапперм на странице
+				"name":"Приложение для примера..", // Имя приложения
+				"auto":false, // Авто запуск приложения
+				"attach":true, // Прикрепляем приложение к ХТМЛ
+				"callback":function(){ // Функция ,которя срабатывает при запусе приложения
+					console.log('example_app: запуск приложения..');
+					this.beep('init');
+				}
+			}).wait('init',function(){
+				console.log('example_app: инициализация приложения..');
+				this.attach_app();
+			}).wait('btn_press',function(){
+				WApi.show({'title':'Сообщение от приложения example_app','content':'Кто-то нажал на кнопку..Загрузим файл..'});
+				WApi.loader('on');
+				WApi.File('al:examples/files_for_read/example.json').ok(function(data){
+					console.log(data);
+					WApi.loader('off');
+				}).exec();
+			}).wait('simple_call',function(){ // example_app.beep('simple_call');
+				WApi.show({'title':'Сообщение от приложения example_app','content':'Кто-то вызвал функцию..'});
+			}).wait('simple_call_with_return',function(){ // example_app.beep('simple_call_with_return');
+				WApi.show({'title':'Сообщение от приложения example_app','content':'Кто-то вызвал функцию, которая возвращает значения..'});
+				return "Hello,world!";
+			}).wait('simple_call_with_param',function(name){ // example_app.beep('simple_call_with_param','th12legion');
+				WApi.show({'title':'Сообщение от приложения example_app','content':'Кто-то вызвал функцию в которую передан параметр..'});
+				return 'Hello,'+name+'!';
+			}).wait('simple_call_with_params',function(storage){ // example_app.beep('simple_call_with_params',{'name':'th12legion','type':'developer'});
+				WApi.show({'title':'Сообщение от приложения example_app','content':'Кто-то вызвал функцию в которую передали несколько параметров..'});
+				return 'Hello,'+storage.type+' '+storage.name+'!';
+			}).run();
+		</script>
+		
+	</body>
+</html>

@@ -1,0 +1,41 @@
+/*------------ Дефолтные блоки ------------*/
+.nj-box{
+	overflow: hidden;
+	margin-top: 8px;
+	background: #fff;
+	-webkit-border-radius: 2px;
+	-moz-border-radius: 2px;
+	border-radius: 2px;
+	box-shadow: 0 0 5px 2px #F1F3F8;
+}
+
+.nj-box > div{
+	margin: 12px;
+}
+
+.nj-box> div > h3.nj-box-header{
+	font-family: Georgia, "Times New Roman", Times, serif;
+	border-top-color: #ea1c1c;
+	height: 15px;
+	font-size: 18px;
+	font-weight: normal;
+	text-transform: uppercase;
+	margin: 22px 0 14px 0;
+	padding: 0;
+	border-bottom: 1px solid #e0e0e0;
+	border-top: 3px solid #ea1c1c;
+	color: #333;
+}
+
+.nj-box > div > h3.nj-box-header > span{
+	margin-top: -15px;
+	display: block;
+	padding-right: 12px;
+	background: #fff;
+	float: left;
+	max-width:100%;
+	white-space: nowrap; /* Запрещаем перенос строк */
+    overflow: hidden; /* Обрезаем все, что не помещается в область */
+	text-overflow: ellipsis; /* Добавляем многоточие */
+}
+/*------------ Дефолтные блоки ------------*/
