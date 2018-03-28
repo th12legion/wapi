@@ -22,6 +22,10 @@
 	   mail:/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/, // мейл
 	   phone:/^\+[0-9]{1,2}\s?\([0-9]{3}\)\s?[0-9]+\-[0-9]+\-[0-9]+$/, // телефон
 	   
+	   date_slash:/^[0-9]{2}\/[0-9]{2}\/[0-9]{4}$/, // Дата в формате месяц/дата/год
+	   
+	   time:/^[0-9]{1,2}:[0-9]{2}$/, // Время в формате часы:минуты
+	   
 	   word_upper: /^[A-ZА-ЯЁ-]+$/,      // слово на Ru/US в верхнем регистре и знак(-).
 	   word_lower: /^[a-zа-яё-]+$/,      // слово на Ru/US в нижнем регистре и знак(-).
 	   word_ru_upper: /^[А-ЯЁ-]+$/,       // слово на Ru в верхнем регистре и знак(-).
@@ -104,6 +108,9 @@
 			"attach_event":null,// функция, которая должна срабатывать если к приложению кто-то прикрепляется
 			"inspect":false
 		};
+		
+		this.started = false;
+		
 		if (app_options!=undefined && typeof app_options == "object"){ // Если передали объект переписываем свойства в наш объект
 			for (var key in app_options){
 				this.options[key] = app_options[key];
@@ -127,9 +134,9 @@
 		for (var key in radio_btn){
 			if (radio_btn[key]["required"]==true && radio_btn[key]["value"]==null){
 				this.input_error['status'] = true;
-				this.input_error['general'] = "Одно или несколько полей заполнины не верно!";
+				this.input_error['general'] = WApi.translate('error_filling_the_fields');
 				if (radio_btn[key]["name"]!=null){
-					this.input_error['list'].push("Поле "+radio_btn[key]["name"]+" заполнено не верно!");
+					this.input_error['list'].push(WApi.translate('the_field_name_is_invalid',{'name':radio_btn[key]["name"]}));
 				}
 			}else{
 				this.input_error['values'][key] = (radio_btn[key]["value"]==null)?"":radio_btn[key]["value"];
@@ -159,16 +166,16 @@
 				}else{
 					elem.addClass("incorect-input");
 					this.input_error['status'] = true;
-					this.input_error['general'] = "Одно или несколько полей заполнины не верно!";
+					this.input_error['general'] = WApi.translate('error_filling_the_fields');
 					if (data_name!=null){
 						this.input_error['list'].push("Поле "+data_name+" заполнено не верно!");
 					}
 				}
 			}else if(data_check=="required" && elem.type=="checkbox" && elem.checked==false){
 				this.input_error['status'] = true;
-				this.input_error['general'] = "Одно или несколько полей заполнины не верно!";
+				this.input_error['general'] = WApi.translate('error_filling_the_fields');
 				if (data_name!=null){
-					this.input_error['list'].push("Поле "+data_name+" заполнено не верно!");
+					this.input_error['list'].push(WApi.translate('the_field_name_is_invalid',{'name':data_name}));
 				}
 			}
 		}
@@ -227,12 +234,18 @@
 	*	@return {this} - Возвращаем объект App
 	*
 	*/
-	App.prototype.beep = function(target,data){
-		var data = data || false,
-			return_value = null;
+	App.prototype.beep = function(target){ 
+		var args = [];
+		for (var i = 1; i < arguments.length; i++) {
+			args.push(arguments[i]);
+		}
+		if(args.length==0){
+			args.push(false);
+		}
+		var return_value = null;
 			
 		if (this.wait_list[target]!=undefined){
-			return_value = this.wait_list[target].call(this,data);
+			return_value = this.wait_list[target].apply(this,args);
 		}
 		return (return_value==null || return_value==undefined)?this:return_value;
 	}
@@ -292,15 +305,23 @@
 					elem.off();
 				});
 			}
+			
+			var _this = this;
 			var list_elements = tar("[data-signature='"+this.options["signature"]+"'] [data-btn]",-1);
 			this.html_list['btn'] = list_elements;
 			list_elements.forEach(function(elem){
 				//elem.off("click");
-				elem.on("click",function(click_elem){
+				/*elem.on("click",function(click_elem){
 					click_elem.preventDefault();
+					console.log(click_elem.target);
 					var target = click_elem.target.getAttribute('data-btn');
 					if (this.wait_list[target]!=undefined){this.wait_list[target].call(this,click_elem.target)}
-				}.bind(this));
+				}.bind(this));*/
+				
+				wjq(elem).click(function(e){
+					var target = $(this).attr('data-btn');
+					if (_this.wait_list[target]!=undefined){_this.wait_list[target].call(_this,this)}
+				});
 			}.bind(this));
 		}
 		return this;
@@ -313,9 +334,11 @@
 	*
 	*/
 	App.prototype.reset_app = function(){
+		this.started = false;
 		if (this.html_list['btn']!=undefined){
 			this.html_list['btn'].forEach(function(elem){
-				elem.off();
+				//elem.off();
+				$(elem).unbind();
 			});
 		}
 		
@@ -364,6 +387,10 @@
 	*
 	*/
 	App.prototype.run = function(callback){
+		if(this.started==true){
+			return this;
+		}
+		this.started = true;
 		if(callback!=undefined && typeof callback == "function"){this.options["callback"] = callback;}
 		
 		this.options["callback"].call(this);

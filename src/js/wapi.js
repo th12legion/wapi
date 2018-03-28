@@ -11,6 +11,12 @@
 
 (function (window){
 
+	var system_translations = {
+		'no_translation':'Нет перевода!',
+		'error_filling_the_fields':'Одно или несколько полей заполнины не верно!',
+		'the_field_name_is_invalid':'Поле %name% заполнено неверно!'
+	};
+
 	/**
 	*	Функция конструктор
 	*
@@ -21,17 +27,28 @@
 	function WApi(){
 		if (!(this instanceof WApi)){return new WApi()};
 		window.wjq = $.noConflict(true);
+		
 		this.config = {
 			"ajax_link":"interactions.php",// Настройка используется в модуле WApi.File. Файл взаимодействия
 			"ajax_method":"actajax",// Настройка используется в модуле WApi.File. Основной метод взаимодействия
 			"load_path":this.get_path('wapi.js'),// Хост загрузки WApi
-			"edge_jq":"inside",// Доступность JQuery
+			"edge_jq":"inside",// Доступность внутреннего JQuery .. inside,system
+			"show_func":null,// Функция для перехвата запросов на показ сообщений от WApi
+			"error_func":null,// Функция для перехвата запросов на показ ошибок от WApi
+			
+			"translations":system_translations,// Функция для перехвата запросов на показ ошибок от WApi
 			
 			"dev_alias":"th12legion" // Автор всей этой ВебАпи
 		};
 		
 		try{// Пытаемся прогрузить пользовательские настройки
 			for(var key in WApi_config){
+				if(key=="translations"){
+					for (var tkey in WApi_config[key]){
+						this.config[key][tkey] = WApi_config[key][tkey];
+					}
+					continue;
+				}
 				this.config[key] = WApi_config[key];
 			}
 		}catch(e){}
@@ -39,6 +56,42 @@
 		if (this.config['edge_jq']=="system"){// Выгружаем внутренний JQuery для доступа из вне.
 			window.$ = window.wjq;
 		}
+	}
+	
+	/**
+	*	Функция для взятия системных переводов
+	*
+	*	@param {String} force_template - Темплейт для перевода
+	*
+	*	@return {String} - Перевод
+	*
+	*/
+	WApi.prototype.translate = function(force_template,data){
+		var translation = "";
+		var match_flag = true,
+			match = null;
+			
+		var template = force_template;
+		if (typeof data != "undefined"){
+			var insert = data;
+		}
+		
+		if (this.config['translations'][template]==undefined){
+			translation = '['+template+' - '+this.config['translations']['no_translation']+']';
+		}else{
+			translation = this.config['translations'][template];
+		}
+		
+		while(match_flag==true){
+			if(match = /%(.*?)%/.exec(translation)){
+				translation = translation.replace(match[0],((insert)?insert[match[1]]:""));
+				match_flag = true;
+			}else{
+				match_flag = false;
+			}
+		}
+		
+		return translation;
 	}
 	
 	/**
@@ -123,13 +176,22 @@
 	*
 	*/
 	WApi.prototype.show = function (storage) {
+		var storage = storage || {};
+		storage.title = storage.title || '';
+		storage.content = storage.content || '';
+		
+		if(this.config['show_func']!=null){
+			this.config['show_func'](storage);
+			return this;
+		}
+		
 		this.shadow("on");
 		
 		var WIN = this.Gui.WinX,
 			WIN_ID = WIN.create({
 				'parent':storage.parent || 'body',
-				'width':storage.width || 350,
-				'height':storage.height || 100,
+				'width':storage.width || "half",
+				'height':storage.height || "half",
 				'x':storage.x || 'center',
 				'y':storage.y || 'center',
 				'title':(storage.title || ''),
@@ -150,13 +212,22 @@
 	*
 	*/
 	WApi.prototype.error = function (storage) {
+		var storage = storage || {};
+		storage.title = storage.title || '';
+		storage.content = storage.content || '';
+		
+		if(this.config['error_func']!=null){
+			this.config['error_func'](storage);
+			return this;
+		}
+		
 		this.shadow("on");
 		
 		var WIN = this.Gui.WinX,
 			WIN_ID = WIN.create({
 				'parent':storage.parent || 'body',
-				'width':storage.width || 350,
-				'height':storage.height || 100,
+				'width':storage.width || "half",
+				'height':storage.height || "half",
 				'x':storage.x || 'center',
 				'y':storage.y || 'center',
 				'title':(storage.title || ''),

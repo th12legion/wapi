@@ -6,7 +6,13 @@
 	<script>
 		var WApi_config = {
 			'edge_jq':'system',
-			'ajax_link':'examples/interactions.php'
+			'ajax_link':'examples/interactions.php',
+			'translations':{
+				'test':'Hello,world'
+			},
+			'show_func':function(storage){
+				console.log(storage);
+			}
 		};
 	</script>
 	<script type="text/javascript" src="out/wapi.js"></script>
@@ -46,7 +52,7 @@
 				}
 			}).wait('init',function(){
 				console.log('example_app: инициализация приложения..');
-				this.attach_app();
+				//this.attach_app();
 			}).wait('btn_press',function(){
 				WApi.show({'title':'Сообщение от приложения example_app','content':'Кто-то нажал на кнопку..Загрузим файл..'});
 				WApi.loader('on');
@@ -66,6 +72,19 @@
 				WApi.show({'title':'Сообщение от приложения example_app','content':'Кто-то вызвал функцию в которую передали несколько параметров..'});
 				return 'Hello,'+storage.type+' '+storage.name+'!';
 			}).run();
+			
+			
+			
+			var example_app2 = WApi.App({
+				"signature":"example_app2", // Сигнатура для связи приложения с ХТМЛ врапперм на странице
+				"name":"Приложение для примера..", // Имя приложения
+				"callback":function(){ // Функция ,которя срабатывает при запусе приложения
+					
+				}
+			}).wait('test',function(a1,a2,a3){
+				console.log(a1,a2,a3);
+			})
+			
 		</script>
 		
 	</body>
