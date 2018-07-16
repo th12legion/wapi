@@ -2196,10 +2196,19 @@ if (!Element.prototype.endFullScreen) {
 			"callback":function(){},// Функция каллбека которую приложение вызывает при создании
 			"attach_list":[],// Прикрипления посторонних приложений,демонов и т.д.
 			"attach_event":null,// функция, которая должна срабатывать если к приложению кто-то прикрепляется
-			"inspect":false
+			"inspect":false, // Включить инспектирование элементов
+            "wait_prefix":false, // Включать префикс в вызов вейтов если приложение приаттачено или следит за роутингом
+            "wait_prefix_btn_on":false, // Включать префикс для кнопок в вызов вейтов если приложение приаттачено
+            "wait_prefix_route_on":false, // Включать префикс для роутов в вызов вейтов если приложение следит за роутами
+            "wait_prefix_btn":"btn_", // Дефолтнй префикс для кнопок
+            "wait_prefix_route":"route_", // Дефолтный префикс для роутов
+            "route":false, // Включать роутинг в приложении или нет
+            "route_mode":"query", // Тип роутинга query || hash
+            "route_target":"route" // Параметр, который отслеживаем в ротинге
 		};
 		
 		this.started = false;
+        this.finded_changed_url =  null;
 		
 		if (app_options!=undefined && typeof app_options == "object"){ // Если передали объект переписываем свойства в наш объект
 			for (var key in app_options){
@@ -2314,6 +2323,16 @@ if (!Element.prototype.endFullScreen) {
 		var template = check_input_pattern[pattern];
 		return template.test(value);
 	}
+    
+    /**
+	*	Функция для взятия списка паттернов
+	*	
+	*	@return {Object} - Список паттернов
+	*
+	*/
+	App.prototype.pattern_get_list = function(pattern,value){
+		return check_input_pattern;
+	}
 	
 	/**
 	*	Функция для вызова функции, которую поставили на прослушку
@@ -2351,6 +2370,58 @@ if (!Element.prototype.endFullScreen) {
 	*/
 	App.prototype.wait = function(target,callback){
 		this.wait_list[target] = callback;
+		return this;
+	}
+    
+    /**
+	*	Функция для того, чтобы кинуть бип на вейт
+	*
+	*	@param {String} url_params - url params в зависимоти от режима.. обычные или хешевские..
+	*	
+	*	@return {this} - Возвращаем объект App
+	*
+	*/
+	App.prototype.route = function(url_params){
+        if(url_params[this.options['route_target']]==undefined){return this;}
+        var curr_beep = url_params[this.options['route_target']];
+        curr_beep = (this.options['wait_prefix']==true || this.options['wait_prefix_route_on']==true)?this.options['wait_prefix_route']+curr_beep:curr_beep;
+        
+		this.beep(curr_beep,url_params);
+		return this;
+	}
+    
+    /**
+	*	Функция для добавления слушателей на роутинг
+	*	
+	*	@return {this} - Возвращаем объект App
+	*
+	*/
+	App.prototype.attach_route = function(){
+		if(this.options['route']==false){return this;}
+        
+        var _this = this,
+            route = new WApi.Way();
+        
+        _this.finded_changed_url = function (){
+            if(_this.started==false){return false;}
+            var route_url_storage = route.parse(location.href),
+                route_params = {};
+            
+            if(_this.options['route_mode']=="query"){
+                route_params = route_url_storage['params'];
+            }else if(_this.options['route_mode']=="hash"){
+                route_params = route_url_storage['hash_params'];
+            }
+            
+            _this.route(route_params);
+        }
+        
+        if(_this.options['route_mode']=="hash"){
+            window.addEventListener("hashchange", _this.finded_changed_url, false);
+        }
+        
+        _this.finded_changed_url();
+        
 		return this;
 	}
 	
@@ -2409,8 +2480,12 @@ if (!Element.prototype.endFullScreen) {
 				}.bind(this));*/
 				
 				wjq(elem).click(function(e){
-					var target = $(this).attr('data-btn');
-					if (_this.wait_list[target]!=undefined){_this.wait_list[target].call(_this,this)}
+					var target = wjq(this).attr('data-btn');
+                    target = (_this.options['wait_prefix']==true || _this.options['wait_prefix_btn_on']==true)?_this.options['wait_prefix_btn']+target:target;
+                    
+                    console.log(target);
+                    
+					if (_this.wait_list[target]!=undefined){_this.wait_list[target].call(_this,this);}
 				});
 			}.bind(this));
 		}
@@ -2428,7 +2503,7 @@ if (!Element.prototype.endFullScreen) {
 		if (this.html_list['btn']!=undefined){
 			this.html_list['btn'].forEach(function(elem){
 				//elem.off();
-				$(elem).unbind();
+				wjq(elem).unbind();
 			});
 		}
 		
@@ -2439,6 +2514,10 @@ if (!Element.prototype.endFullScreen) {
 		}
 		
 		this.html_list = [];
+        if(this.finded_changed_url!=null){
+            window.removeEventListener("hashchange", this.finded_changed_url);
+            this.finded_changed_url =  null;
+        }
 		
 		return this;
 	}
@@ -2486,6 +2565,7 @@ if (!Element.prototype.endFullScreen) {
 		this.options["callback"].call(this);
 		this.inspect_app();
 		this.attach_app();
+        this.attach_route();
 		
 		return this;
 	}
@@ -2503,17 +2583,45 @@ if (!Element.prototype.endFullScreen) {
 
 (function (window) {
 	var path = location.href;
+    
+    /**
+	*	Функция, чтобы распарсить параметры из строки
+	*
+    *   @param {String} str_params - Строчка с параметрами
+    *
+	*	@return {Object} - Массив с параметрами
+	*
+	*/
+    var parse_params = function(str_params){
+        var ret = {},
+            seg = str_params.split('&'),
+            len = seg.length, i = 0, s;
+        for (;i<len;i++) {
+            if (!seg[i]) { continue; }
+            s = seg[i].split('=');
+            ret[s[0]] = s[1];
+        }
+        return ret;
+    }
+    
+    
 	/**
 	*	Функция конструктор
 	*
 	*	@constructor
 	* 	@this {Way}
+    *
+    *   @param {String} way_option - Строка URL
 	*
+    *	@return {this}  - Возвращаем объект Way
+    *
 	*/
 	function Way(way_option){
 		if (!(this instanceof Way)){return new Way(way_option)};
 		path = location.href;
 		path = way_option || path;
+        
+        return this;
 	}
 	
 	/**
@@ -2522,7 +2630,8 @@ if (!Element.prototype.endFullScreen) {
 	*	@return {Object} - Массив свойст урл
 	*
 	*/
-	Way.prototype.parse = function() {
+	Way.prototype.parse = function(url) {
+        path = url;
 		var a =  document.createElement('a');
 		a.href = path;
 		return {
@@ -2531,19 +2640,10 @@ if (!Element.prototype.endFullScreen) {
 			host: a.hostname,
 			port: a.port,
 			query: a.search,
-			params: (function(){
-				var ret = {},
-					seg = a.search.replace(/^\?/g,'').split('&'),
-					len = seg.length, i = 0, s;
-				for (;i<len;i++) {
-					if (!seg[i]) { continue; }
-					s = seg[i].split('=');
-					ret[s[0]] = s[1];
-				}
-				return ret;
-			})(),
+			params: parse_params(a.search.replace(/^\?/g,'')),
 			file: (a.pathname.match(/([^/?#]+)$/i) || [,''])[1],
 			hash: a.hash.replace('#',''),
+            hash_params: parse_params(a.hash.replace('#','')),
 			path: a.pathname.replace(/^([^/])/,'/$1')
 		};
 	}
